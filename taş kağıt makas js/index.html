@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Taş • Kağıt • Makas</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220aa; --accent:#06b6d4; --success:#10b981; --danger:#ef4444; --muted:#94a3b8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Segoe UI,Arial;background:linear-gradient(180deg,#071124 0%, #0f1724 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;height:100vh;padding:20px}
+  .wrap{width:100%;max-width:920px;background:var(--card);border-radius:14px;padding:20px;backdrop-filter:blur(6px);box-shadow:0 10px 40px rgba(2,6,23,.6)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{margin:0;font-size:20px}
+  .sub{color:var(--muted);font-size:13px}
+  .board{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:18px}
+  .play-area{background:rgba(255,255,255,0.03);padding:18px;border-radius:12px;min-height:320px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center}
+  .choices{display:flex;gap:14px}
+  .btn{
+    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.04);
+    padding:14px 18px;border-radius:12px;color:inherit;font-weight:600;cursor:pointer;min-width:96px;text-align:center;box-shadow:0 6px 18px rgba(2,6,23,0.5);
+    transition:transform .14s ease, box-shadow .14s ease, background .14s;
+    user-select:none;
+  }
+  .btn:active{transform:translateY(2px)}
+  .emoji{font-size:28px;display:block;margin-bottom:8px}
+  .result{font-size:18px;font-weight:700}
+  .vs{font-size:14px;color:var(--muted)}
+  .panel{background:rgba(255,255,255,0.02);padding:14px;border-radius:12px;min-height:320px}
+  .score{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .score .box{background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;min-width:120px;text-align:center}
+  .small{font-size:12px;color:var(--muted)}
+  .history{margin-top:12px;max-height:160px;overflow:auto;padding-right:6px}
+  .history-item{display:flex;justify-content:space-between;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.02)}
+  .controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .danger{background:var(--danger);color:white}
+  .success{background:var(--success);color:white}
+  .accent{background:var(--accent);color:#022}
+  .highlight{outline:3px solid rgba(6,182,212,0.12)}
+  footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px}
+  @media(max-width:880px){ .board{grid-template-columns:1fr; } .panel{order:2} }
+</style>
+</head>
+<body>
+  <div class="wrap" role="application" aria-label="Taş Kağıt Makas Oyunu">
+    <header>
+      <div>
+        <h1>Taş • Kağıt • Makas</h1>
+        <div class="sub">Bilgisayara karşı oyna — skorunu kayıt et, en iyi skorunu kır!</div>
+      </div>
+      <div>
+        <div class="small">Klavye: T = Taş, K = Kağıt, M = Makas</div>
+      </div>
+    </header>
+
+    <div class="board">
+      <section class="play-area" aria-live="polite">
+        <div class="result" id="resultText">Hazırsan başla — seçim yap!</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="text-align:center">
+            <div class="small">Sen</div>
+            <div id="playerPick" class="emoji">❓</div>
+          </div>
+
+          <div style="text-align:center">
+            <div class="vs">→</div>
+            <div style="height:8px"></div>
+            <div class="vs">Bilgisayar</div>
+          </div>
+
+          <div style="text-align:center">
+            <div class="small">CPU</div>
+            <div id="cpuPick" class="emoji">❓</div>
+          </div>
+        </div>
+
+        <div class="choices" role="group" aria-label="Seçimler">
+          <button class="btn" data-choice="rock" title="Taş (T)"><span class="emoji">🪨</span>Taş</button>
+          <button class="btn" data-choice="paper" title="Kağıt (K)"><span class="emoji">📄</span>Kağıt</button>
+          <button class="btn" data-choice="scissors" title="Makas (M)"><span class="emoji">✂️</span>Makas</button>
+        </div>
+
+        <div class="controls">
+          <button id="newRound" class="btn accent">Yeni Tur</button>
+          <button id="resetScores" class="btn danger">Skorları Sıfırla</button>
+          <button id="autoPlay" class="btn">Otomatik Oyna (3 tur)</button>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="score">
+          <div class="box">
+            <div class="small">Senin Skorun</div>
+            <div id="playerScore" style="font-size:24px;font-weight:800">0</div>
+          </div>
+          <div class="box">
+            <div class="small">Bilgisayar</div>
+            <div id="cpuScore" style="font-size:24px;font-weight:800">0</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <div class="small">En İyi Skor:</div>
+          <div style="font-weight:700" id="bestScore">0</div>
+        </div>
+
+        <div style="margin-top:12px" class="small">Oyun geçmişi (son 10):</div>
+        <div class="history" id="history"></div>
+
+        <div style="margin-top:12px" class="small">Ayarlar</div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label class="small" style="display:flex;gap:6px;align-items:center">
+            <input type="checkbox" id="soundToggle" checked /> Ses
+          </label>
+          <label class="small" style="display:flex;gap:6px;align-items:center">
+            <input type="checkbox" id="vibrateToggle" /> Titreşim (mobil)
+          </label>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="small">Hızlı İstatistik</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <div class="box" style="min-width:80px">
+              <div class="small">Oyun</div>
+              <div id="gamesCount" style="font-weight:700">0</div>
+            </div>
+            <div class="box" style="min-width:80px">
+              <div class="small">Kazanma %</div>
+              <div id="winRate" style="font-weight:700">0%</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer>İyi eğlenceler! ♟️ — <span id="note" style="color:var(--muted)"></span></footer>
+  </div>
+
+<script>
+(() => {
+  // state
+  let playerScore = 0, cpuScore = 0, games = 0;
+  const bestKey = 'rps_best_score_v1';
+  const histKey = 'rps_history_v1';
+  const statsKey = 'rps_stats_v1';
+
+  const pickMap = {
+    rock: {emoji:'🪨', beats:'scissors'},
+    paper: {emoji:'📄', beats:'rock'},
+    scissors: {emoji:'✂️', beats:'paper'}
+  };
+  const choices = ['rock','paper','scissors'];
+
+  // elements
+  const btns = document.querySelectorAll('.btn[data-choice]');
+  const playerPickEl = document.getElementById('playerPick');
+  const cpuPickEl = document.getElementById('cpuPick');
+  const resultText = document.getElementById('resultText');
+  const playerScoreEl = document.getElementById('playerScore');
+  const cpuScoreEl = document.getElementById('cpuScore');
+  const bestScoreEl = document.getElementById('bestScore');
+  const historyEl = document.getElementById('history');
+  const gamesCountEl = document.getElementById('gamesCount');
+  const winRateEl = document.getElementById('winRate');
+  const soundToggle = document.getElementById('soundToggle');
+  const vibrateToggle = document.getElementById('vibrateToggle');
+
+  // audio (simple beep using WebAudio)
+  const audioCtx = typeof AudioContext !== 'undefined' ? new AudioContext() : null;
+  function beep(freq=440, duration=120, vol=0.02){
+    if(!audioCtx || !soundToggle.checked) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type='sine'; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); setTimeout(()=>{ o.stop(); g.disconnect(); }, duration);
+  }
+
+  // helpers
+  function randChoice(){ return choices[Math.floor(Math.random()*choices.length)]; }
+  function getBest(){ return Number(localStorage.getItem(bestKey) || 0); }
+  function setBest(v){ localStorage.setItem(bestKey, v); bestScoreEl.textContent = v; }
+
+  function pushHistory(entry){
+    const arr = JSON.parse(localStorage.getItem(histKey) || '[]');
+    arr.unshift(entry);
+    while(arr.length>10) arr.pop();
+    localStorage.setItem(histKey, JSON.stringify(arr));
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const arr = JSON.parse(localStorage.getItem(histKey) || '[]');
+    historyEl.innerHTML = arr.map(it => {
+      return `<div class="history-item"><div>${it.when} — ${it.play} vs ${it.cpu}</div><div style="font-weight:700">${it.result}</div></div>`;
+    }).join('');
+  }
+
+  function updateStats(){
+    gamesCountEl.textContent = games;
+    const winRate = games ? Math.round((playerScore / games) * 100) : 0;
+    winRateEl.textContent = winRate + '%';
+    const stats = {playerScore, cpuScore, games, winRate};
+    localStorage.setItem(statsKey, JSON.stringify(stats));
+  }
+
+  function flash(el){
+    el.classList.add('highlight');
+    setTimeout(()=>el.classList.remove('highlight'), 420);
+  }
+
+  // main play
+  function playRound(playerChoice){
+    // animate picks
+    playerPickEl.textContent = '...';
+    cpuPickEl.textContent = '...';
+    resultText.textContent = 'Bilgisayar seçiyor...';
+    beep(800,80,0.01);
+
+    setTimeout(() => {
+      const cpuChoice = randChoice();
+      playerPickEl.textContent = pickMap[playerChoice].emoji;
+      cpuPickEl.textContent = pickMap[cpuChoice].emoji;
+
+      // determine
+      let result = 'Berabere';
+      if (pickMap[playerChoice].beats === cpuChoice) result = 'Kazandın';
+      else if (pickMap[cpuChoice].beats === playerChoice) result = 'Kaybettin';
+
+      // update scores
+      if(result === 'Kazandın'){ playerScore++; beep(900,140,0.02); flash(playerScoreEl); }
+      else if(result === 'Kaybettin'){ cpuScore++; beep(200,140,0.02); flash(cpuScoreEl); }
+      else { beep(520,90,0.01); }
+
+      games++;
+      playerScoreEl.textContent = playerScore;
+      cpuScoreEl.textContent = cpuScore;
+
+      // result text
+      resultText.textContent = `${result} — ${playerChoice.toUpperCase()} vs ${cpuChoice.toUpperCase()}`;
+      const when = new Date().toLocaleTimeString();
+      pushHistory({when, play: choiceLabel(playerChoice), cpu: choiceLabel(cpuChoice), result});
+
+      // best score check (by playerScore - cpuScore difference)
+      const diff = playerScore - cpuScore;
+      const best = getBest();
+      if(diff > best){ setBest(diff); showNote('Yeni en iyi skor: ' + diff); }
+
+      updateStats();
+      if(vibrateToggle.checked && navigator.vibrate) navigator.vibrate(80);
+    }, 650);
+  }
+
+  function choiceLabel(c){ return c === 'rock' ? 'Taş' : c === 'paper' ? 'Kağıt' : 'Makas'; }
+
+  // UI bindings
+  btns.forEach(b => {
+    b.addEventListener('click', () => {
+      const choice = b.dataset.choice;
+      playRound(choice);
+    });
+  });
+
+  // keyboard support
+  window.addEventListener('keydown', (e) => {
+    if(e.key.toLowerCase() === 't') document.querySelector('[data-choice="rock"]').click();
+    if(e.key.toLowerCase() === 'k') document.querySelector('[data-choice="paper"]').click();
+    if(e.key.toLowerCase() === 'm') document.querySelector('[data-choice="scissors"]').click();
+  });
+
+  // controls
+  document.getElementById('newRound').addEventListener('click', () => {
+    playerPickEl.textContent = '❓';
+    cpuPickEl.textContent = '❓';
+    resultText.textContent = 'Yeni tur — seçim yap!';
+  });
+
+  document.getElementById('resetScores').addEventListener('click', () => {
+    if(!confirm('Skorlar sıfırlansın mı?')) return;
+    playerScore = 0; cpuScore = 0; games = 0;
+    playerScoreEl.textContent = '0'; cpuScoreEl.textContent = '0';
+    setBest(0); localStorage.removeItem(histKey); renderHistory(); updateStats(); showNote('Skorlar sıfırlandı');
+  });
+
+  document.getElementById('autoPlay').addEventListener('click', async () => {
+    showNote('Otomatik oynuyor: 3 tur');
+    for(let i=0;i<3;i++){
+      await new Promise(r => setTimeout(r, 700));
+      playRound(randChoice());
+      await new Promise(r => setTimeout(r, 900));
+    }
+  });
+
+  // small helpers
+  function showNote(txt){ document.getElementById('note').textContent = txt; setTimeout(()=>{document.getElementById('note').textContent='';},2200); }
+
+  // local persistence: load saved stats
+  (function init(){
+    const savedBest = getBest(); bestScoreEl.textContent = savedBest;
+    renderHistory();
+    const savedStats = JSON.parse(localStorage.getItem(statsKey) || '{}');
+    if(savedStats && typeof savedStats.playerScore === 'number'){
+      playerScore = savedStats.playerScore || 0;
+      cpuScore = savedStats.cpuScore || 0;
+      games = savedStats.games || 0;
+      playerScoreEl.textContent = playerScore;
+      cpuScoreEl.textContent = cpuScore;
+      updateStats();
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>
